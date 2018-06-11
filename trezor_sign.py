@@ -18,6 +18,7 @@ from trezorlib.transport_hid import HidTransport
 import trezorlib.messages as proto_types
 import itertools
 import argparse
+import base64
 
 
 # Take a target address as input and search the client until a matching bip32 path is found, then return it
@@ -66,7 +67,8 @@ def sign(addr, msg, tx):
     if coin == 'Testnet':
         TxApi= TxApiBlockCypher(coin, 'https://api.blockcypher.com/v1/btc/test3/')
         print("Making testnet api")
-    if coin == 'Bitcoin':
+    # if coin == 'Bitcoin':
+        # TODO: Enable mainnet addresses
         # TxApi = TxApiBlockCypher(coin, 'https://api.blockcypher.com/v1/btc/main/')
         # print("Making bitcoin api")
 
@@ -78,19 +80,23 @@ def sign(addr, msg, tx):
         raise ValueError('The address {} was not found on the connected trezor {} in search for its bip32 path'.format(addr,transport))
     print('Found bip32 path:', client.get_address(coin, found_path))
 
-    if msg is not None :
-        signature = client.sign_message(coin_name=coin, n=found_path, message=msg)
+    # TODO: In both message and transaction sign, add support for script types besides just P2PKH
+    if msg is not None:
+        res = client.sign_message(coin_name=coin, n=found_path, message=msg)
         print('Signing message: "{}"\nFrom address: {}'.format(msg, addr))
-        print('Signature:', signature)
+        print('Signature:', str(base64.b64encode(res.signature), 'ascii'))
 
     if tx is not None :
-        # In this basic implementation, remember that tx data comes in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>
+        # In this basic implementation, remember that tx data comes in the format:
+        # <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>
         prev_hash = tx[0]
         prev_index = int(tx[1])
         dest_address = tx[2]
-        # TO DO: Fee handling
+        # TODO: Fee handling
         send_amount = int(tx[3])
 
+        print('Signing tx from address:', addr)
+        print('Using UTXO: {} and index {} to send {} {} coins'.format(prev_hash, prev_index, send_amount / 100000000, coin))
         # The inputs of the transaction.
         inputs = [
             proto_types.TxInputType(
@@ -110,18 +116,19 @@ def sign(addr, msg, tx):
 
         (signatures, serialized_tx) = client.sign_tx(coin, inputs, outputs)
         # print('Signatures:', signatures)
-        print('Signing tx from address:', addr)
-        print('Using UTXO: {} and index {} to send {} {} coins'.format(prev_hash, prev_index, send_amount/100000000, coin))
-        print('Transaction:', serialized_tx.hex())
+        print('Signed transaction:', serialized_tx.hex())
 
     client.close()
 
 def main():
     parser = argparse.ArgumentParser(description='Sign a message or simple transaction with trezor')
-    parser.add_argument("--addr", "-a", action='store', dest='addr', help="Address to sign from", required=True)
-    parser.add_argument("--msg", "-m", action='store', dest='msg', help="Sign the following message")
-    parser.add_argument("--tx", "-t", dest='tx', nargs=4, help="Sign the following transaction in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>")
-
+    parser.add_argument("--addr", "-a", action='store', dest='addr',
+                        help="Address to sign from", required=True)
+    parser.add_argument("--msg", "-m", action='store', dest='msg',
+                        help='Sign the following message (in quotes): "Message"')
+    parser.add_argument("--tx", "-t", dest='tx', nargs=4,
+                        help="Sign the following transaction in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>")
+    # TODO: Add handling for multiple inputs, outputs, change addresses and fees
     args = parser.parse_args()
     signing_addr = args.addr
     msg = args.msg
