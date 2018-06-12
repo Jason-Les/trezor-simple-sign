@@ -9,9 +9,9 @@ a proof of concept, **NOT for regular use**. I have not added sufficient error-c
 
 Currently only supporting:
 
--P2PKH testnet addresses
--Single input (Single prev hash and index)
--Single output (with a single change address)
+- P2PKH testnet addresses
+- Single input (Single prev hash and index)
+- Single output (with a single change address)
 
 ## Support
 I have only tested this using python 3.6 on Ubuntu with Trezor One. I cannot yet vouch for reliability on other setups.
