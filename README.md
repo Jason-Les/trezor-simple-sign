@@ -22,7 +22,7 @@ The python-trezor package is required to run this. Please follow install instruc
 ## Use
 Use from command line as follows:
 ```
-python3.6 trezor_sign.py -a <SOURCE ADDRESS> -m "Message to sign" -t <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>
+python3.6 trezor_sign.py -a <SOURCE ADDRESS> -m "Message to sign" -t <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT IN SATOSHIS>
 ```
 From command line, use `python3.6 trezor_sign.py -h` or `--help` for help as well
 

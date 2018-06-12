@@ -165,7 +165,7 @@ def main():
     parser.add_argument("--msg", "-m", action='store', dest='msg',
                         help='Sign the following message (in quotes): "Message"')
     parser.add_argument("--tx", "-t", dest='tx', nargs=4,
-                        help='Sign the following transaction in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>')
+                        help='Sign the following transaction in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT IN SATOSHIS>')
 
     # Parse passed arguments
     args = parser.parse_args()
