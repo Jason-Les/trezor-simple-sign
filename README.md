@@ -22,7 +22,7 @@ The python-trezor package is required to run this. Please follow install instruc
 ## Future work
 I wanted to get a very basic version up ASAP, so there is still additional work to be done. I intend to do the following:
 
--Add support for p2sh and wrapped segwit addresses
--Accept multiple inputs and allow multiple outputs
--Automatcially pull UTXOs from specified signing address
--Enable mainnet support
+- Add support for p2sh and wrapped segwit addresses
+- Accept multiple inputs and allow multiple outputs
+- Automatcially pull UTXOs from specified signing address
+- Enable mainnet support
