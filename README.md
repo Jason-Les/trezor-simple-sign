@@ -1,7 +1,7 @@
 # trezor-simple-sign
 
 ## About
-Very simple tool for signing messages and transactions with trezor. 
+Very simple command-line tool for signing messages and transactions with trezor. 
 This was written using the SatoshiLab's python-trezor API available here: https://github.com/trezor/python-trezor
 
 Please do not use for mainnet transactions without first reviewing and testing code yourself. Tool's intention is to be
