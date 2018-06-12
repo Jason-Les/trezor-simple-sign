@@ -19,6 +19,13 @@ I have only tested this using python 3.6 on Ubuntu with Trezor One. I cannot yet
 ## Install
 The python-trezor package is required to run this. Please follow install instructions for python-trezor here: https://github.com/trezor/python-trezor
 
+## Use
+Use from command line as follows:
+'''
+python3.6 trezor_sign.py -a <SOURCE ADDRESS> -m "Message to sign" -t <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>'
+'''
+From command line, use 'python3.6 trezor_sign.py -h' or '--help' for help as well
+
 ## Future work
 I wanted to get a very basic version up ASAP, so there is still additional work to be done. I intend to do the following:
 
