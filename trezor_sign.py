@@ -104,7 +104,7 @@ def sign(addr, msg, tx):
         # TODO: Remove fee constant of 650 satoshi and accept custom input
         fee = 650
         # Uses blockcypher API to get the amount (satoshi) of the UTXO
-        utxo_amount = TxApi.get_tx(prev_hash).bin_outputs[0].amount
+        utxo_amount = TxApi.get_tx(prev_hash).bin_outputs[prev_index].amount
 
         if send_amount + fee > utxo_amount:
             raise ValueError('UTXO amount of {} is too small for sending {} satoshi with {} satoshi fee'.format(utxo_amount, send_amount, fee))
