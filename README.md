@@ -40,5 +40,4 @@ I wanted to get a very basic version up ASAP, so there is still additional work 
 - Enable mainnet support
 
 ## Updates
-##### June 13, 2018
-You can now sign from p2sh-segwit addresses as well as take P2SH-segwit inputs however still can only have ouputs of P2PKH at this time
+- June 13, 2018 - You can now sign from p2sh-segwit addresses as well as take P2SH-segwit inputs however still can only have ouputs of P2PKH at this time
