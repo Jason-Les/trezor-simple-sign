@@ -27,13 +27,11 @@ PREFIX_TO_COIN = {
 }
 
 PREFIX_TO_BIP32_START = {
-    'Testnet': {'m': "44'/1'",
-                'n': "44'/1'",
-                '2': "49'/1'",
-    },
-    'Bitcoin': {'1': "44'/0'",
-                '3': "49'/0'",
-    }
+    'm': "44'/1'",
+    'n': "44'/1'",
+    '2': "49'/1'",
+    '1': "44'/0'",
+    '3': "49'/0'",
 }
 
 PREFIX_TO_INPUT_SCRIPT = {
@@ -46,16 +44,15 @@ PREFIX_TO_INPUT_SCRIPT = {
 
 
 # Take a target address as input and search the client until a matching bip32 path is found, then return it
-# TODO: Fix bug involving P2SH-segwit addresses
 def find_path(target_address, client, coin='Testnet'):
-
-    base_path = PREFIX_TO_BIP32_START[coin][target_address[0]]
+    prefix = target_address[0]
+    base_path = PREFIX_TO_BIP32_START[prefix]
     # Searches up to 5 accounts and 100 addresses for each (including change addresses)
     for acct, addr, chng in itertools.product(range(5), range(100), range(2)):
         curr_path = base_path + "/{}'/{}/{}".format(acct, chng, addr)
-        # print(curr_path)
         bip32_path = client.expand_path(curr_path)
-        curr_addr = client.get_address(coin, bip32_path)
+        # Note that this function assumes that any address with the prefix '2' (Testnet) or '3' (bitcoin) is P2SH-segwit
+        curr_addr = client.get_address(coin_name=coin, n=bip32_path, script_type=PREFIX_TO_INPUT_SCRIPT[prefix])
         if curr_addr == target_address:
             return bip32_path
 
@@ -124,7 +121,6 @@ def sign(addr, msg, tx):
 
 
     # Sign the specified message from the specified source address. Signature is in base64
-    # TODO: In both message and transaction sign, add support for script types besides just P2PKH
     if msg is not None:
         res = client.sign_message(coin_name=coin, n=found_path, message=msg, script_type=PREFIX_TO_INPUT_SCRIPT[addr_prefix])
         print('Signing message: "{}"\nFrom address: {}'.format(msg, addr))
