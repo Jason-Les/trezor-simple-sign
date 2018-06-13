@@ -1,19 +1,12 @@
 '''
 Very simple tool for signing messages and transactions with trezor.
-This was written using the SatoshiLab's python-trezor API available here: https://github.com/trezor/python-trezor
+This was written using the SatoshiLab's python-trezor (trezorlib) API available here: https://github.com/trezor/python-trezor
 
-Please do not use for mainnet transactions without first reviewing and testing code yourself. Tool's intention is to be
-a proof of concept, **NOT for regular use**. I have not added sufficient error-checking on input. I have done minimal testing.
-
-Currently only supporting:
-
--P2PKH testnet addresses
--Single input (Single prev hash and index)
--Single output (with a single change address)
+Please see README for important information: https://github.com/Jason-Les/trezor-simple-sign/blob/master/README.md
 
 By: Jason Les
 JasonLes@gmail.com
-@heyitscheet
+twitter: @heyitscheet
 '''
 
 import binascii
@@ -25,14 +18,38 @@ import itertools
 import argparse
 import base64
 
+PREFIX_TO_COIN = {
+    '2': 'Testnet',
+    'm': 'Testnet',
+    'n': 'Testnet',
+    '1': 'Bitcoin',
+    '3': 'Bitcoin',
+}
+
+PREFIX_TO_BIP32_START = {
+    'Testnet': {'m': "44'/1'",
+                'n': "44'/1'",
+                '2': "49'/1'",
+    },
+    'Bitcoin': {'1': "44'/0'",
+                '3': "49'/0'",
+    }
+}
+
+PREFIX_TO_INPUT_SCRIPT = {
+    '2': proto_types.InputScriptType.SPENDP2SHWITNESS,
+    'm': proto_types.InputScriptType.SPENDADDRESS,
+    'n': proto_types.InputScriptType.SPENDADDRESS,
+    '1': proto_types.InputScriptType.SPENDADDRESS,
+    '3': proto_types.InputScriptType.SPENDP2SHWITNESS,
+}
+
 
 # Take a target address as input and search the client until a matching bip32 path is found, then return it
+# TODO: Fix bug involving P2SH-segwit addresses
 def find_path(target_address, client, coin='Testnet'):
 
-    if coin == 'Testnet':
-        base_path = "44'/1'"
-    if coin == 'Bitcoin':
-        base_path = "44'/0'"
+    base_path = PREFIX_TO_BIP32_START[coin][target_address[0]]
     # Searches up to 5 accounts and 100 addresses for each (including change addresses)
     for acct, addr, chng in itertools.product(range(5), range(100), range(2)):
         curr_path = base_path + "/{}'/{}/{}".format(acct, chng, addr)
@@ -44,6 +61,27 @@ def find_path(target_address, client, coin='Testnet'):
 
     # Return None if search exhausts with no match
     return None
+
+# Uses Blockcypher API to get script_type of UTXO in order to specify for the input of the new transaction
+# Returns script_type as defined in InputScriptType
+def get_input_script_type(api, txhash, index):
+    utxo_json = api.fetch_json('txs', txhash)
+    utxo_script_type_raw = utxo_json['outputs'][index]['script_type']
+    if utxo_script_type_raw == 'pay-to-pubkey-hash':
+        return proto_types.InputScriptType.SPENDADDRESS
+    elif utxo_script_type_raw == 'pay-to-script-hash':
+        # I think this may be not be best practice here. Should not assume a P2SH script type is P2SH-segwit
+        # However, trezor doesn't have an option for P2SH addresses AFAIK
+        return proto_types.InputScriptType.SPENDP2SHWITNESS
+    else:
+        raise ValueError('Unknown script_type of input')
+
+
+# Determines output_script_type based on the receiving address
+# Returns script_type as defined in OutputScriptType
+def get_output_script_type(api, address):
+    raise NotImplementedError
+
 
 def sign(addr, msg, tx):
     # List all connected Trezors on USB
@@ -59,13 +97,11 @@ def sign(addr, msg, tx):
     transport = devices[0]
 
     # Determine coin/address type corresponding to signing addresses
-    # TODO: Enable mainnet addresses. Currently temporarily disabled for safety.
-    prefix = addr[0]
-    if prefix == '1' or prefix == '3':
-        # coin = 'Bitcoin'
-        raise ValueError('Mainnet temporarily disabled until more testing and work is done')
-    if prefix == 'm' or prefix == 'n':
-        coin = 'Testnet'
+    addr_prefix = addr[0]
+    coin = PREFIX_TO_COIN[addr_prefix]
+    # TODO: Remove this to enable mainnet addresses. Currently temporarily disabled for safety.
+    if coin == 'Bitcoin':
+        raise ValueError('Mainnet addresses currently not supported for safety')
 
     # Creates object for manipulating trezor
     client = TrezorClient(transport)
@@ -86,10 +122,11 @@ def sign(addr, msg, tx):
     else:
         print('Found bip32 path for: {} - signing from this address'.format(client.get_address(coin, found_path)))
 
+
     # Sign the specified message from the specified source address. Signature is in base64
     # TODO: In both message and transaction sign, add support for script types besides just P2PKH
     if msg is not None:
-        res = client.sign_message(coin_name=coin, n=found_path, message=msg)
+        res = client.sign_message(coin_name=coin, n=found_path, message=msg, script_type=PREFIX_TO_INPUT_SCRIPT[addr_prefix])
         print('Signing message: "{}"\nFrom address: {}'.format(msg, addr))
         print('Signature:', str(base64.b64encode(res.signature), 'ascii'))
 
@@ -120,6 +157,7 @@ def sign(addr, msg, tx):
                 address_n=found_path,
                 prev_hash=binascii.unhexlify(prev_hash),
                 prev_index=prev_index,
+                script_type=get_input_script_type(api=TxApi, txhash=prev_hash, index=prev_index),
             ),
         ]
         # The outputs of the transaction
