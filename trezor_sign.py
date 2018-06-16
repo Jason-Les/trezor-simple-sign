@@ -42,6 +42,14 @@ PREFIX_TO_INPUT_SCRIPT = {
     '3': proto_types.InputScriptType.SPENDP2SHWITNESS,
 }
 
+PREFIX_TO_OUTPUT_SCRIPT = {
+    '2': proto_types.OutputScriptType.PAYTOP2SHWITNESS,
+    'm': proto_types.OutputScriptType.PAYTOADDRESS,
+    'n': proto_types.OutputScriptType.PAYTOADDRESS,
+    '1': proto_types.OutputScriptType.PAYTOADDRESS,
+    '3': proto_types.OutputScriptType.PAYTOP2SHWITNESS,
+}
+
 
 # Take a target address as input and search the client until a matching bip32 path is found, then return it
 def find_path(target_address, client, coin='Testnet'):
@@ -71,13 +79,7 @@ def get_input_script_type(api, txhash, index):
         # However, trezor doesn't have an option for P2SH addresses AFAIK
         return proto_types.InputScriptType.SPENDP2SHWITNESS
     else:
-        raise ValueError('Unknown script_type of input')
-
-
-# Determines output_script_type based on the receiving address
-# Returns script_type as defined in OutputScriptType
-def get_output_script_type(api, address):
-    raise NotImplementedError
+        raise ValueError('Unknown or unsupported script_type of input')
 
 
 def sign(addr, msg, tx):
@@ -105,9 +107,9 @@ def sign(addr, msg, tx):
     if coin == 'Testnet':
         TxApi= TxApiBlockCypher(coin, 'https://api.blockcypher.com/v1/btc/test3/')
         print('Making testnet api')
-    # if coin == 'Bitcoin':
-        # TxApi = TxApiBlockCypher(coin, 'https://api.blockcypher.com/v1/btc/main/')
-        # print("Making bitcoin api")
+    if coin == 'Bitcoin':
+        TxApi = TxApiBlockCypher(coin, 'https://api.blockcypher.com/v1/btc/main/')
+        print("Making bitcoin api")
 
     # Set the api for trezor client
     client.set_tx_api(TxApi)
@@ -119,64 +121,61 @@ def sign(addr, msg, tx):
     else:
         print('Found bip32 path for: {} - signing from this address'.format(client.get_address(coin, found_path)))
 
-
     # Sign the specified message from the specified source address. Signature is in base64
     if msg is not None:
-        res = client.sign_message(coin_name=coin, n=found_path, message=msg, script_type=PREFIX_TO_INPUT_SCRIPT[addr_prefix])
         print('Signing message: "{}"\nFrom address: {}'.format(msg, addr))
+        res = client.sign_message(coin_name=coin, n=found_path, message=msg, script_type=PREFIX_TO_INPUT_SCRIPT[addr_prefix])
+        print('Verify signing action on your trezor')
         print('Signature:', str(base64.b64encode(res.signature), 'ascii'))
 
     if tx is not None :
         # In this basic implementation, remember that tx data comes in the format:
-        # <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT>
+        # <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT> <FEE>
         prev_hash = tx[0]
         prev_index = int(tx[1])
         dest_address = tx[2]
         send_amount = int(tx[3])
+        fee = int(tx[4])
 
-        # TODO: Remove fee constant of 650 satoshi and accept custom input
-        fee = 650
-        # Uses blockcypher API to get the amount (satoshi) of the UTXO
+        # Uses blockcypher API to get the amount (satoshi) of the UTXO. Amount is in satoshis
         utxo_amount = TxApi.get_tx(prev_hash).bin_outputs[prev_index].amount
 
         if send_amount + fee > utxo_amount:
             raise ValueError('UTXO amount of {} is too small for sending {} satoshi with {} satoshi fee'.format(utxo_amount, send_amount, fee))
 
-        # Determine amount to send to change address
-        change = utxo_amount - send_amount - fee
-
         print('Using UTXO: {} and index {} to send {} {} coins to: {}'.format(prev_hash, prev_index, send_amount / 100000000, coin, dest_address))
 
-        # The inputs of the transaction.
+        # Prepare the inputs of the transaction
+        input_type = get_input_script_type(api=TxApi, txhash=prev_hash, index=prev_index)
         inputs = [
             proto_types.TxInputType(
                 address_n=found_path,
                 prev_hash=binascii.unhexlify(prev_hash),
                 prev_index=prev_index,
-                script_type=get_input_script_type(api=TxApi, txhash=prev_hash, index=prev_index),
+                script_type=input_type,
+                amount=utxo_amount # Amount is in satoshis
             ),
         ]
-        # The outputs of the transaction
-        # TODO: Handle alternative (segwit) output types
-        output_type = proto_types.OutputScriptType.PAYTOADDRESS
 
+        # Prepare the outputs of the transaction
         outputs = [
             proto_types.TxOutputType(
                 amount=send_amount,  # Amount is in satoshis
-                script_type=output_type,
+                script_type=PREFIX_TO_OUTPUT_SCRIPT[dest_address[0]],
                 address=dest_address
             ),
         ]
-        # Add change output
-        # Sends change to change address on the bip32 path of the sending address
+        # Determine amount to send to change address. Amount is in satoshis
+        change = utxo_amount - send_amount - fee
+        # Add change output, which is change address on the bip32 path of the sending address
         if change > 0:
             change_path = found_path[:]
             change_path[3] = 1
             change_address = client.get_address(coin, change_path)
 
             outputs.append(proto_types.TxOutputType(
-                amount=change,
-                script_type=output_type,
+                amount=change, # Amount is in satoshis
+                script_type=PREFIX_TO_OUTPUT_SCRIPT[change_address[0]],
                 address=change_address
             ))
             print('Sending change amount of {} {} coins to change address: {}'.format(change / 100000000, coin, change_address))
@@ -192,14 +191,15 @@ def sign(addr, msg, tx):
 
 def main():
     # Arguments for command-line use
-    # TODO: Add handling for multiple inputs, outputs, and custom fees
+    # TODO: Add handling for multiple inputs and outputs. Clean up argsparser
     parser = argparse.ArgumentParser(description='Sign a message or simple transaction with trezor')
     parser.add_argument("--addr", "-a", action='store', dest='addr',
                         help="Address to sign from", required=True)
     parser.add_argument("--msg", "-m", action='store', dest='msg',
                         help='Sign the following message (in quotes): "Message"')
-    parser.add_argument("--tx", "-t", dest='tx', nargs=4,
-                        help='Sign the following transaction in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT IN SATOSHIS>')
+    parser.add_argument("--tx", "-t", dest='tx', nargs=5,
+                        help='Sign the following transaction in the format: <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT> <FEE>'
+                             ' Note: The amount and fee should be in satoshis and the fee is total fee')
 
     # Parse passed arguments
     args = parser.parse_args()

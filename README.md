@@ -9,9 +9,8 @@ a proof of concept, **NOT for regular use**. I have not added sufficient error-c
 
 Currently only supporting:
 
-- Sending to P2PKH testnet addresses
 - Single input (Single prev hash and index)
-- Single output (with a single change address)
+- Single output (with a single change output automatically generated)
 
 ## Support
 I have only tested this using python 3.6 on Ubuntu with Trezor One. I cannot yet vouch for reliability on other setups.
@@ -22,23 +21,24 @@ The python-trezor (trezorlib) package is required to run this. Please follow ins
 ## Use
 Use from command line as follows:
 ```
-python3 trezor_sign.py -a <SOURCE ADDRESS> -m "Message to sign" -t <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT IN SATOSHIS>
+python3 trezor_sign.py -a <SOURCE ADDRESS> -m "Message to sign" -t <PREV HASH> <PREV INDEX> <DESTINATION ADDRESS> <AMOUNT IN SATOSHIS> <FEE IN SATOSHIS>
 ```
 From command line, use `python3 trezor_sign.py -h` or `--help` for help as well
 
 Example use:
 ```
-python3 trezor_sign.py -a mwQRohxiG2NDJtEbaj3yUyPqyFN1xdtVq5 -t a9b488954842f73264023c5dbfeb319fae8a6cd0c2a80449e0691401c706fb5d 0 mtH9P9zeY4HdU4roE5BTYXfbDmfQZpZuEz 20000000
+python3 trezor_sign.py -a mwQRohxiG2NDJtEbaj3yUyPqyFN1xdtVq5 -t a9b488954842f73264023c5dbfeb319fae8a6cd0c2a80449e0691401c706fb5d 0 mtH9P9zeY4HdU4roE5BTYXfbDmfQZpZuEz 20000000 650
 ```
 
 ## Future work
-I wanted to get a very basic version up ASAP, so there is still additional work to be done. I intend to do the following:
+Still additional work to be done. I intend to do the following:
 
-- Add full support for p2sh and wrapped segwit addresses
 - Accept multiple inputs and allow multiple outputs
-- Automatcially pull UTXOs from specified signing address
+- Automatically pull UTXOs from specified signing address
 - Enable mainnet support
 
 ## Updates
+#####June 16, 2018
+P2SH-Segwit inputs and outputs now fully supported. Additionally, fees must now be specified at command-line
 #####June 13, 2018
 You can now sign from p2sh-segwit addresses as well as take P2SH-segwit inputs however still can only have ouputs of P2PKH at this time
