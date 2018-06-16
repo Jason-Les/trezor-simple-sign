@@ -38,7 +38,5 @@ Still additional work to be done. I intend to do the following:
 - Enable mainnet support
 
 ## Updates
-#####June 16, 2018
-P2SH-Segwit inputs and outputs now fully supported. Additionally, fees must now be specified at command-line
-#####June 13, 2018
-You can now sign from p2sh-segwit addresses as well as take P2SH-segwit inputs however still can only have ouputs of P2PKH at this time
+- June 16, 2018 - P2SH-Segwit inputs and outputs now fully supported. Additionally, fees must now be specified at command-line
+- June 13, 2018 - You can now sign from p2sh-segwit addresses as well as take P2SH-segwit inputs however still can only have ouputs of P2PKH at this time
